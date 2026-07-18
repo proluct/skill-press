@@ -1,6 +1,11 @@
-# skill-press
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo-light.svg" alt="skill-press" width="560">
+  </picture>
+</p>
 
-A factory for Claude Code skills: interview, prior-art absorb, one plan gate, build, deterministic validation, fresh-subagent dogfood. Nothing ships untested.
+<p align="center"><b>A factory for Claude Code skills: interview, prior-art absorb, one plan gate, build, deterministic validation, fresh-subagent dogfood. Nothing ships untested.</b></p>
 
 Most skills are written once, installed, and trusted. A SKILL.md that reads well is not evidence it works: descriptions that never trigger, instructions a fresh agent stalls on, promised capabilities with no implementing step. skill-press exists because the gap between "reads well" and "works" is where skills die.
 
