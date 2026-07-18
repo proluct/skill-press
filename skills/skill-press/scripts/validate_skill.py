@@ -137,7 +137,7 @@ def main():
         sub_text = check_file_hygiene(sub, rel, errors, warnings)
         check_references_resolve(sub_text, rel, skill_dir, errors)
         n = len(sub_text.split("\n"))
-        if n > REFERENCE_TOC_WARN and "## Contents" not in sub_text and "## Table of contents" not in sub_text.lower():
+        if n > REFERENCE_TOC_WARN and "## Contents" not in sub_text and "## table of contents" not in sub_text.lower():
             warnings.append(f"{rel}: {n} lines with no table of contents")
 
     for line in errors:

@@ -4,5 +4,9 @@
   "version": "1.0.0",
   "author": {
     "name": "proluct"
-  }
+  },
+  "homepage": "https://github.com/proluct/skill-press",
+  "repository": "https://github.com/proluct/skill-press",
+  "license": "MIT",
+  "keywords": ["skills", "factory", "validation", "testing", "dogfood"]
 }

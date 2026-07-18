@@ -63,6 +63,10 @@ Requires Python (for the validator) and a POSIX shell for the small preflight bl
 
 `/skill-press-retro` mines every real run for systemic lessons. On a manual install it edits the factory files directly and appends numbered corrections to the run log. On a plugin install the factory files are managed, so retro files its approved findings as issues on this repository instead. Every serious user's retro run is a contribution: this is how the factory compounds.
 
+## Related
+
+[skanna](https://github.com/proluct/skanna) is the companion project: a security scanner that vets Claude Code skills and plugins before install. skill-press builds them, skanna vets them.
+
 ## License
 
 MIT
