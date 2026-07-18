@@ -1,0 +1,13 @@
+{
+  "name": "skill-press",
+  "owner": {
+    "name": "proluct"
+  },
+  "plugins": [
+    {
+      "name": "skill-press",
+      "source": "./",
+      "description": "A factory for Claude Code skills: interview, prior-art absorb, plan gate, build, deterministic validation, fresh-subagent dogfood. Nothing ships untested."
+    }
+  ]
+}
