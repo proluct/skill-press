@@ -8,6 +8,7 @@ Exit codes: 0 = pass (warnings allowed unless --strict), 1 = errors found,
 2 = bad invocation.
 """
 
+import difflib
 import re
 import sys
 from pathlib import Path
@@ -30,9 +31,9 @@ BARE_REF_RE = re.compile(r"(?<![\w/(\[])((?:references|scripts|assets)/[\w.\-/]+
 
 
 def parse_frontmatter(text):
-    """Return (dict, error). Minimal parser: no yaml dependency guaranteed."""
+    """Return (dict, list_of_errors). Minimal parser: no yaml dependency guaranteed."""
     if not text.startswith("---"):
-        return None, "SKILL.md does not start with '---' frontmatter"
+        return None, ["SKILL.md does not start with '---' frontmatter"]
     lines = text.split("\n")
     end = None
     for i, line in enumerate(lines[1:], start=1):
@@ -40,20 +41,28 @@ def parse_frontmatter(text):
             end = i
             break
     if end is None:
-        return None, "frontmatter never closes with '---'"
+        return None, ["frontmatter never closes with '---'"]
     fields = {}
     current_key = None
+    errors = []
+    allowed_keys = ["name", "description", "version", "allowed-tools"]
     for line in lines[1:end]:
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         m = re.match(r"^([A-Za-z][\w-]*):\s*(.*)$", line)
         if m:
             current_key = m.group(1)
+            if current_key not in allowed_keys:
+                matches = difflib.get_close_matches(current_key, allowed_keys, n=1)
+                if matches:
+                    errors.append(f"frontmatter: unknown top-level key '{current_key}' (did you mean '{matches[0]}'?)")
+                else:
+                    errors.append(f"frontmatter: unknown top-level key '{current_key}'")
             fields[current_key] = m.group(2).strip().strip("\"'")
         elif current_key and (line.startswith("  ") or line.startswith("\t")):
             # continuation (folded scalar or list item); append for length checks
             fields[current_key] = (fields[current_key] + " " + line.strip().lstrip("- ")).strip()
-    return fields, None
+    return fields, errors
 
 
 def check_file_hygiene(path, rel, errors, warnings):
@@ -104,20 +113,25 @@ def main():
         return 1
 
     text = check_file_hygiene(skill_md, "SKILL.md", errors, warnings)
-    fields, fm_err = parse_frontmatter(text)
-    if fm_err:
-        errors.append(f"SKILL.md: {fm_err}")
+    fields, fm_errs = parse_frontmatter(text)
+    if fields is None:
+        for err in fm_errs:
+            errors.append(f"SKILL.md: {err}")
     else:
+        errors.extend(fm_errs)
         name = fields.get("name", "")
         desc = fields.get("description", "")
         if not name:
-            errors.append("frontmatter: missing 'name'")
+            if not fm_errs:
+                errors.append("frontmatter: missing 'name'")
         elif not NAME_RE.match(name):
             errors.append(f"frontmatter: name '{name}' is not kebab-case")
         elif name != skill_dir.name:
             errors.append(f"frontmatter: name '{name}' != directory '{skill_dir.name}'")
+            
         if not desc:
-            errors.append("frontmatter: missing 'description'")
+            if not fm_errs:
+                errors.append("frontmatter: missing 'description'")
         else:
             if len(desc) > MAX_DESCRIPTION:
                 errors.append(f"description: {len(desc)} chars > {MAX_DESCRIPTION} max")
