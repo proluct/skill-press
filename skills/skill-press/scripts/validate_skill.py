@@ -29,11 +29,19 @@ WORKFLOW_SMELL_RE = re.compile(r"(->|\bthen\s+I\b|\bstep \d|\bphase \d)", re.IGN
 MD_LINK_RE = re.compile(r"\]\(([^)#>][^)]*)\)")
 BARE_REF_RE = re.compile(r"(?<![\w/(\[])((?:references|scripts|assets)/[\w.\-/]+)")
 
+# Frontmatter keys the loader recognizes. A key outside this set is only an
+# error when it is close enough to a known key to be a typo; anything else is a
+# warning, so a newly supported key never blocks a ship.
+KNOWN_KEYS = ["name", "description", "version", "allowed-tools", "license", "metadata", "model"]
+# 0.75 catches real slips ('nmae', 'descrption', 'verison') without matching
+# unrelated words ('tools', 'author'), which would produce a misleading hint.
+TYPO_CUTOFF = 0.75
+
 
 def parse_frontmatter(text):
-    """Return (dict, list_of_errors). Minimal parser: no yaml dependency guaranteed."""
+    """Return (dict, errors, warnings). Minimal parser: no yaml dependency guaranteed."""
     if not text.startswith("---"):
-        return None, ["SKILL.md does not start with '---' frontmatter"]
+        return None, ["SKILL.md does not start with '---' frontmatter"], []
     lines = text.split("\n")
     end = None
     for i, line in enumerate(lines[1:], start=1):
@@ -41,28 +49,27 @@ def parse_frontmatter(text):
             end = i
             break
     if end is None:
-        return None, ["frontmatter never closes with '---'"]
+        return None, ["frontmatter never closes with '---'"], []
     fields = {}
     current_key = None
-    errors = []
-    allowed_keys = ["name", "description", "version", "allowed-tools"]
+    errors, warnings = [], []
     for line in lines[1:end]:
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         m = re.match(r"^([A-Za-z][\w-]*):\s*(.*)$", line)
         if m:
             current_key = m.group(1)
-            if current_key not in allowed_keys:
-                matches = difflib.get_close_matches(current_key, allowed_keys, n=1)
-                if matches:
-                    errors.append(f"frontmatter: unknown top-level key '{current_key}' (did you mean '{matches[0]}'?)")
+            if current_key not in KNOWN_KEYS:
+                near = difflib.get_close_matches(current_key, KNOWN_KEYS, n=1, cutoff=TYPO_CUTOFF)
+                if near:
+                    errors.append(f"frontmatter: unknown top-level key '{current_key}' (did you mean '{near[0]}'?)")
                 else:
-                    errors.append(f"frontmatter: unknown top-level key '{current_key}'")
+                    warnings.append(f"frontmatter: unrecognized top-level key '{current_key}'")
             fields[current_key] = m.group(2).strip().strip("\"'")
         elif current_key and (line.startswith("  ") or line.startswith("\t")):
             # continuation (folded scalar or list item); append for length checks
             fields[current_key] = (fields[current_key] + " " + line.strip().lstrip("- ")).strip()
-    return fields, errors
+    return fields, errors, warnings
 
 
 def check_file_hygiene(path, rel, errors, warnings):
@@ -113,25 +120,24 @@ def main():
         return 1
 
     text = check_file_hygiene(skill_md, "SKILL.md", errors, warnings)
-    fields, fm_errs = parse_frontmatter(text)
+    fields, fm_errs, fm_warns = parse_frontmatter(text)
     if fields is None:
-        for err in fm_errs:
-            errors.append(f"SKILL.md: {err}")
+        errors.extend(f"SKILL.md: {err}" for err in fm_errs)
     else:
         errors.extend(fm_errs)
+        warnings.extend(fm_warns)
         name = fields.get("name", "")
         desc = fields.get("description", "")
+        # Reported independently of any key-name finding: a typo'd key and a
+        # genuinely absent field are separate defects and both must surface.
         if not name:
-            if not fm_errs:
-                errors.append("frontmatter: missing 'name'")
+            errors.append("frontmatter: missing 'name'")
         elif not NAME_RE.match(name):
             errors.append(f"frontmatter: name '{name}' is not kebab-case")
         elif name != skill_dir.name:
             errors.append(f"frontmatter: name '{name}' != directory '{skill_dir.name}'")
-            
         if not desc:
-            if not fm_errs:
-                errors.append("frontmatter: missing 'description'")
+            errors.append("frontmatter: missing 'description'")
         else:
             if len(desc) > MAX_DESCRIPTION:
                 errors.append(f"description: {len(desc)} chars > {MAX_DESCRIPTION} max")
